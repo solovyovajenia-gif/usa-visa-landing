@@ -740,6 +740,15 @@ body,.lead,.perk span,.svc p,.case p,.sc dd,.tl-step p,.depends,.faq .ans>div,.f
 .sc-n,.cc-n,.why-item .n,.tl-dot,.pass-route .code,.amount,.stats b,.badge-visa b{font-family:var(--serif);font-weight:400}
 .ticker span,.checklist .more,.cc-take{font-family:var(--serif)}
 .mock .bubble,.mock-score,.chip,.factors li,.depends li,.f-base,.f-legal,.f-disc{font-weight:400}
+
+.stats .st-s{display:none}
+@media(max-width:1023px){
+  .h-stats .st-l{display:none}.h-stats .st-s{display:block}
+  .h-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:end;margin:0 0 36px}
+  .h-stats b{font-size:30px;white-space:nowrap}
+  .h-stats span{font-size:10px;letter-spacing:.14em;white-space:nowrap;margin-top:6px}
+  .h-lead-short{margin-bottom:32px}
+}
 </style>
 </head>
 <body>
@@ -819,9 +828,9 @@ body,.lead,.perk span,.svc p,.case p,.sc dd,.tl-step p,.depends,.faq .ans>div,.f
       <p class="lead enter h-lead h-lead-short" style="animation-delay:.35s" data-i18n="hero.subm">From assessing your case and completing the DS-160 to interview preparation.</p>
       <p class="lead enter h-lead h-lead-full" style="animation-delay:.35s" data-i18n="hero.sub">Expert support with your U.S. visa application — from assessing your case and completing the DS-160 to interview preparation.</p>
       <div class="stats enter h-stats" style="animation-delay:.4s">
-        <div><b>12+</b><span data-i18n="st.years">years of expertise</span></div>
-        <div><b>20,000+</b><span data-i18n="st.cases">cases handled</span></div>
-        <div><b>97%</b><span data-i18n="st.appr">approval rate</span></div>
+        <div><b>12+</b><span class="st-l" data-i18n="st.years">years of expertise</span><span class="st-s" data-i18n="st.years_s">years</span></div>
+        <div><b>20,000+</b><span class="st-l" data-i18n="st.cases">cases handled</span><span class="st-s" data-i18n="st.cases_s">cases</span></div>
+        <div><b>97%</b><span class="st-l" data-i18n="st.appr">approval rate</span><span class="st-s" data-i18n="st.appr_s">approved</span></div>
       </div>
       <div class="perks h-perks">
         <div class="perk enter" style="animation-delay:.45s"><div class="perk-ic"><svg><use href="#i-user"/></svg></div><div><b data-i18n="hero.p1t">Personalized case assessment</b><span data-i18n="hero.p1d">We review your travel history, citizenship, country of residence and personal circumstances.</span></div></div>
@@ -1228,7 +1237,7 @@ en: {
   'cc1g':'After approval','cc1t':'Two visas in the wrong passports — fixed in 2 hours','cc1s':"Twins' tourist visas were approved, but the consulate placed each sticker in the other child's passport. The trip was days away.",'cc1d':'Contacted the consulate immediately and explained the urgency.','cc1r':'Stickers replaced within 2 hours. Family flew on schedule.',
   'cc2g':'After two refusals','cc2t':'Two refusals — then approval to rejoin her husband','cc2s':'After a long stay abroad, the client was refused a U.S. tourist visa twice.','cc2d':'Analysed her U.S. history, family situation and both refusals, then rebuilt the application around the weak points.','cc2r':'Third application approved. She returned to the U.S. to her husband.',
   'cc3g':'Urgent','cc3t':'A visa in one day — to make it to surgery','cc3s':'Surgery in Germany was scheduled and paid for. Almost no time left for a visa.','cc3d':"Prepared the file overnight, submitted proof of payment and the doctor's letter, flagged the urgency to the consulate.",'cc3r':'Interview next morning, passport with visa after lunch, flight the same day.',
-  'st.years':'years of expertise','st.cases':'cases handled','st.appr':'approval rate',
+  'st.years':'years of expertise','st.cases':'cases handled','st.appr':'approval rate','st.years_s':'years','st.cases_s':'cases','st.appr_s':'approved',
   'why.eyebrow':'Why World Pass','why.h2':'More than just <em>filling out a form</em>','why.sub':'We help you prepare for the entire U.S. visa application process.',
   'w1t':'Personalized approach','w1d':'Every applicant has a different background. We tailor our guidance to your circumstances.',
   'w2t':'International experience','w2d':'We work with clients living in different countries, with different citizenships and travel backgrounds.',
@@ -1305,7 +1314,7 @@ ru: {
   'cc1g':'После одобрения','cc1t':'Две визы в чужих паспортах — исправили за 2 часа','cc1s':'Близнецам одобрили туристические визы, но консульство вклеило наклейки в паспорта друг друга. До поездки оставались дни.','cc1d':'Сразу связались с консульством и объяснили срочность.','cc1r':'Наклейки заменили за 2 часа. Семья улетела по плану.',
   'cc2g':'После двух отказов','cc2t':'Два отказа — и одобрение, чтобы вернуться к мужу','cc2s':'После долгого пребывания вне США клиентке дважды отказали в туристической визе.','cc2d':'Разобрали её историю в США, семейную ситуацию и оба отказа, собрали заявление заново вокруг слабых мест.','cc2r':'Третья подача одобрена. Клиентка вернулась в США к супругу.',
   'cc3g':'Срочно','cc3t':'Виза за один день — чтобы успеть на операцию','cc3s':'Операция в Германии назначена и оплачена. Времени на визу почти нет.','cc3d':'За ночь подготовили документы, передали подтверждение оплаты и письмо врача, объяснили консульству срочность.','cc3r':'Утром интервью, после обеда паспорт с визой, вечером вылет.',
-  'st.years':'лет на рынке','st.cases':'заявок','st.appr':'одобрений',
+  'st.years':'лет на рынке','st.cases':'заявок','st.appr':'одобрений','st.years_s':'лет','st.cases_s':'заявок','st.appr_s':'одобрений',
   'why.eyebrow':'Почему World Pass','why.h2':'Не просто <em>заполнение анкеты</em>','why.sub':'Мы помогаем подготовить весь визовый процесс комплексно.',
   'w1t':'Индивидуальный подход','w1d':'Не используем один сценарий для всех заявителей.',
   'w2t':'Международная экспертиза','w2d':'Работаем с клиентами, которые находятся в разных странах.',
