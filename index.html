@@ -461,8 +461,8 @@ form.sent .form-ok{display:flex;animation:enter .6s var(--ease)}
 .final-card::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(100deg,#0F2036 0%,rgba(15,32,54,.75) 45%,rgba(15,32,54,.35) 100%)}
 .final-card{background:transparent}
 /* intro */
-.intro{position:fixed;inset:0;z-index:100;background:var(--navy-3);display:grid;place-items:center;animation:introOut 1s cubic-bezier(.76,0,.24,1) 1.7s forwards;pointer-events:none}
-@keyframes introOut{to{transform:translateY(-100%);visibility:hidden}}
+.intro{position:fixed;inset:0;z-index:100;background:var(--navy-3);display:grid;place-items:center;animation:introOut 1.1s cubic-bezier(.65,0,.35,1) 1.7s forwards;pointer-events:none;will-change:transform}
+@keyframes introOut{to{transform:translateY(-101%)}}
 .intro .mark{width:160px;color:#fff;opacity:0;animation:introMark 1.4s var(--ease) forwards}
 .intro .mark svg{width:100%;height:auto}
 .intro .mark path{stroke:#C8B69A;stroke-width:1.2;fill:none;stroke-dasharray:420;stroke-dashoffset:420;animation:introDraw 1.1s var(--ease) .1s forwards}
@@ -1373,7 +1373,7 @@ function setLang(lang){
   document.body.classList.add('intro-on');
   intro.classList.add('done');
   setTimeout(() => { document.body.classList.remove('intro-on'); }, 900);
-  setTimeout(() => intro.remove(), 2100);
+  setTimeout(() => intro.remove(), 3000);
   try { sessionStorage.setItem('wp_intro', '1'); } catch(e){}
 })();
 /* ================= UI ================= */
