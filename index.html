@@ -768,10 +768,6 @@ body,.lead,.perk span,.svc p,.case p,.sc dd,.tl-step p,.depends,.faq .ans>div,.f
   </defs>
 </svg>
 
-<div class="intro" id="intro" aria-hidden="true">
-  <div class="mark"><svg viewBox="0 0 180 56"><path d="M4 12c22-2 40-8 58-24 8 10 16 20 28 22 18-10 46-26 86-30-30 8-56 26-70 44-16 6-34-2-44-18-16 8-36 10-58 6z"/></svg></div>
-  <div class="line"></div>
-</div>
 <input type="checkbox" id="menuToggle" class="menu-toggle" hidden>
 <div class="mmenu">
   <nav>
@@ -1365,17 +1361,6 @@ function setLang(lang){
 })();
 
 
-/* intro: один раз за сессию */
-(() => {
-  const intro = document.getElementById('intro');
-  let seen = false; try { seen = sessionStorage.getItem('wp_intro'); } catch(e){}
-  if (seen || matchMedia('(prefers-reduced-motion: reduce)').matches) { intro.remove(); return; }
-  document.body.classList.add('intro-on');
-  intro.classList.add('done');
-  setTimeout(() => { document.body.classList.remove('intro-on'); }, 900);
-  setTimeout(() => intro.remove(), 3000);
-  try { sessionStorage.setItem('wp_intro', '1'); } catch(e){}
-})();
 /* ================= UI ================= */
   document.querySelectorAll('.mmenu a').forEach(a => a.addEventListener('click', () => { document.getElementById('menuToggle').checked = false; }));
 
