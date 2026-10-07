@@ -744,7 +744,10 @@ body,.lead,.perk span,.svc p,.case p,.sc dd,.tl-step p,.depends,.faq .ans>div,.f
 .stats .st-s{display:none}
 @media(max-width:1023px){
   .h-stats .st-l{display:none}.h-stats .st-s{display:block}
-  .h-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:end;margin:0 0 36px}
+  .h-stats{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin:0 0 36px;padding:0 4px}
+  .h-stats>div{text-align:center;flex:0 0 auto}
+  .h-stats>div:first-child{text-align:left}
+  .h-stats>div:last-child{text-align:right}
   .h-stats b{font-size:30px;white-space:nowrap}
   .h-stats span{font-size:10px;letter-spacing:.14em;white-space:nowrap;margin-top:6px}
   .h-lead-short{margin-bottom:32px}
