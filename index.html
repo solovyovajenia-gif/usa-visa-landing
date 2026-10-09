@@ -1466,6 +1466,7 @@ function setLang(lang){
     fd.append('phone', f.phone.value.trim());
     fd.append('email', '');
     fd.append('service', 'USA Visa B1/B2');
+    fd.append('residence', f.country.value.trim());
     // страна проживания пока уходит в комментарий
     fd.append('msg', `Country of residence: ${f.country.value.trim()} · Form: ${f.dataset.formName} · Lang: ${document.documentElement.lang.toUpperCase()}`);
     CRM.send(fd);
