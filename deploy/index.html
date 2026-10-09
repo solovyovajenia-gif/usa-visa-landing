@@ -1507,7 +1507,9 @@ function setLang(lang){
     // страна проживания пока уходит в комментарий
     fd.append('msg', `Country of residence: ${f.country.value.trim()} · Form: ${f.dataset.formName} · Lang: ${document.documentElement.lang.toUpperCase()}`);
     CRM.send(fd);
-    if (window.gtag) gtag('event', 'generate_lead', { form_id: 'leadForm' });
+    if (window.gtag) gtag('event', 'generate_lead', { form_id: f.id || 'lead_form' });
+    if (window.ym) ym(113579110, 'reachGoal', 'lead');
+    if (window.fbq) fbq('track', 'Lead');
     f.reset();
     overlay.classList.add('on');
   }));
