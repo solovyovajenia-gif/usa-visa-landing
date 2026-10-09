@@ -87,30 +87,43 @@ function kommo_residence_field_id(array $k): ?int {
 
 $kommo_ok = null; $kommo_note = '';
 if ($KOMMO && !empty($KOMMO['token']) && !empty($KOMMO['subdomain'])) {
-  $lead = [
-    'name' => "$service — $name",
-    '_embedded' => ['contacts' => [[
-      'name' => $name,
-      'custom_fields_values' => [[ 'field_code' => 'PHONE', 'values' => [['value' => $phone, 'enum_code' => 'WORK']] ]],
-    ]]],
-  ];
-  if (!empty($KOMMO['pipeline_id'])) $lead['pipeline_id'] = (int)$KOMMO['pipeline_id'];
-  if (!empty($KOMMO['status_id']))   $lead['status_id']   = (int)$KOMMO['status_id'];
-  if (!empty($KOMMO['tags']))        $lead['_embedded']['tags'] = array_map(fn($t) => ['name' => $t], $KOMMO['tags']);
+  $fid = ($residence !== '') ? kommo_residence_field_id($KOMMO) : null;
+  if ($residence !== '' && !$fid) $kommo_note = 'residence field not found';
 
-  [$code, $data, $raw] = kommo_call($KOMMO, 'POST', 'leads/complex', [$lead]);
+  $lead = [ 'name' => "$service — $name" ];
+  if ($fid) $lead['custom_fields_values'] = [[ 'field_id' => $fid, 'values' => [['value' => $residence]] ]];
+  if (!empty($KOMMO['tags'])) $lead['_embedded'] = ['tags' => array_map(fn($t) => ['name' => $t], $KOMMO['tags'])];
+
+  $form_name = $f('form') ?: 'usatravel.ae — Case Assessment';
+  // «Неразобранное» (Incoming leads): сделка без ответственного, менеджер принимает её сам
+  $payload = [[
+    'source_uid'  => 'usatravel.ae-' . bin2hex(random_bytes(8)),
+    'source_name' => 'usatravel.ae',
+    'pipeline_id' => (int)($KOMMO['pipeline_id'] ?? 0) ?: null,
+    'created_at'  => time(),
+    'metadata' => [
+      'form_id'      => 'usatravel_ae',
+      'form_name'    => $form_name,
+      'form_page'    => $url ?: 'https://usatravel.ae/',
+      'ip'           => $ip ?: '0.0.0.0',
+      'form_sent_at' => time(),
+      'referer'      => $url ?: 'https://usatravel.ae/',
+    ],
+    '_embedded' => [
+      'leads'    => [$lead],
+      'contacts' => [[
+        'name' => $name,
+        'custom_fields_values' => [[ 'field_code' => 'PHONE', 'values' => [['value' => $phone, 'enum_code' => 'WORK']] ]],
+      ]],
+    ],
+  ]];
+  $payload[0] = array_filter($payload[0], fn($v) => $v !== null);
+
+  [$code, $data, $raw] = kommo_call($KOMMO, 'POST', 'leads/unsorted/forms', $payload);
   $kommo_ok = ($code >= 200 && $code < 300);
   if ($kommo_ok) {
-    $lead_id = $data[0]['id'] ?? null;
-    if ($lead_id) {
-      // Country of Residence → поле сделки (отдельным PATCH: leads/complex это поле игнорирует)
-      if ($residence !== '') {
-        $fid = kommo_residence_field_id($KOMMO);
-        if ($fid) kommo_call($KOMMO, 'PATCH', "leads/$lead_id", [ 'custom_fields_values' => [[ 'field_id' => $fid, 'values' => [['value' => $residence]] ]] ]);
-        else $kommo_note = 'residence field not found';
-      }
-      kommo_call($KOMMO, 'POST', "leads/$lead_id/notes", [[ 'note_type' => 'common', 'params' => ['text' => $body] ]]);
-    }
+    $lead_id = $data['_embedded']['unsorted'][0]['_embedded']['leads'][0]['id'] ?? null;
+    if ($lead_id) kommo_call($KOMMO, 'POST', "leads/$lead_id/notes", [[ 'note_type' => 'common', 'params' => ['text' => $body] ]]);
   } else {
     @file_put_contents(__DIR__ . '/leads.log', "KOMMO ERROR $code: " . substr($raw, 0, 300) . "\n", FILE_APPEND | LOCK_EX);
   }
