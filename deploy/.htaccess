@@ -10,7 +10,10 @@ RewriteRule ^ https://usatravel.ae%{REQUEST_URI} [L,R=301]
 </FilesMatch>
 
 AddDefaultCharset UTF-8
-<IfModule mod_expires.c>
-  ExpiresActive On
-  ExpiresByType text/html "access plus 10 minutes"
+
+# HTML всегда свежий — чтобы правки были видны сразу
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html|htm)$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
 </IfModule>
