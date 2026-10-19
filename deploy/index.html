@@ -784,6 +784,14 @@ body,.lead,.perk span,.svc p,.case p,.sc dd,.tl-step p,.depends,.faq .ans>div,.f
   .h-cta{margin-top:6px}
   body{padding-bottom:84px}
 }
+/* mobile: caption clears the boarding pass; stacked-card scroll effect for two card sections */
+@media(max-width:1023px){
+  .vis-note{top:calc(100% + 30px)}
+  .h-visual{margin:0 0 100px}
+  .cards6,.cases{padding-bottom:28px}
+  .cards6 .svc,.cases .case{position:sticky;top:calc(84px + var(--i)*12px);box-shadow:0 -10px 30px rgba(15,32,54,.12)}
+  .cards6 .svc{background:#F1F3F6}
+}
 </style>
 <!-- Yandex.Metrika counter -->
 <script type="text/javascript">
