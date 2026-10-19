@@ -668,8 +668,8 @@ html:not(.js) .intro{display:none}
 .sq.tg::before{content:"";position:absolute;inset:0;border-radius:inherit;background:#2AABEE;opacity:.3;animation:softPulse 3s ease-out infinite .4s;z-index:-1}
 @keyframes tgSend{0%,70%,100%{transform:translate(0,0)}78%{transform:translate(2px,-2px)}86%{transform:translate(-1px,1px)}}
 #lead,#finalForm{scroll-margin-top:84px}
-.vis-note-wrap{margin-top:-6px;margin-bottom:8px}
-.vis-note{max-width:820px;margin:0 auto;font-size:12px;line-height:1.5;color:#8D9AAB;text-align:center}
+.vis-note{position:absolute;left:0;right:0;top:calc(100% + 8px);margin:0;font-size:10px;line-height:1.4;color:#9AA6B5;text-align:center;letter-spacing:.01em;pointer-events:none}
+@media(max-width:1023px){.vis-note{top:calc(100% + 6px);font-size:9.5px;padding:0 6px}}
 .f-social{display:flex;gap:10px;margin-top:16px}
 .f-social a{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;color:#fff;background:linear-gradient(45deg,#F58529,#DD2A7B,#8134AF);transition:transform .25s var(--ease),box-shadow .25s}
 .f-social a:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(221,42,123,.35)}
@@ -932,10 +932,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <span class="ok"><svg><use href="#i-check"/></svg></span>
         <div><span data-i18n="chip1.t">DS-160 reviewed</span><small data-i18n="chip1.d">Ready to submit</small></div>
       </div>
+      <p class="vis-note" data-i18n="vis.note">Illustrative graphic — not an official travel document. Visa validity is determined by U.S. authorities and may vary by nationality and visa category.</p>
       </div>
     </div>
   </div>
-<div class="container vis-note-wrap"><p class="vis-note" data-i18n="vis.note">Illustrative graphic â not an official travel document. Visa validity is determined by U.S. authorities and may vary by nationality and visa category.</p></div>
 </section>
 
 <div class="container form-dock" id="lead">
@@ -1017,7 +1017,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <div class="container">
     <div class="section-head">
       <span class="eyebrow reveal" data-i18n="cs.eyebrow">Complex cases</span>
-      <h2 class="reveal" data-i18n-html="cs.h2">Not sure how strong <em>your case is?</em></h2>
+      <h2 class="reveal" data-i18n-html="cs.h2">Not sure how strong <em>your case&nbsp;is?</em></h2>
       <p class="lead reveal" data-i18n="cs.sub">Let's assess your situation before you start the application.</p>
     </div>
     <div class="cases">
@@ -1216,7 +1216,7 @@ en: {
   'plan.goal':'The goal is not simply to complete a form. It is to make sure your application is accurate, consistent and properly prepared before your interview.',
   'r1t':'Your case','r1d':'You tell us about yourself and your trip','r2t':'Assessment','r2d':'We see what is strong and what needs support','r3t':'Application preparation','r3d':'DS-160 and documents','r4t':'Appointment','r4d':'Interview booking',
   'r5t':'Interview — prepare with confidence','r5d':'We identify likely questions for your case and practise in mock interview sessions',
-  'mock.head':'Mock interview · session 2','mock.officer':'Officer','mock.you':'You','mock.conf':'Confidence','mock.label':'Mock Interview Practice','vis.note':'Illustrative graphic â not an official travel document. Visa validity is determined by U.S. authorities and may vary by nationality and visa category.',
+  'mock.head':'Mock interview · session 2','mock.officer':'Officer','mock.you':'You','mock.conf':'Confidence','mock.label':'Mock Interview Practice','vis.note':'Illustrative graphic — not an official travel document. Visa validity is determined by U.S. authorities and may vary by nationality and visa category.',
   'svc.eyebrow':'What we do','svc.h2':'Support at every key stage <em>of your U.S. visa application</em>','svc.key':'Key stage',
   's1t':'Case assessment','s1d':'We review your circumstances and identify the key points to address before you apply.',
   's2d':'We assist with preparing DS-160 application information based on the details you provide. All information must be accurate and truthful. The applicant is responsible for reviewing and confirming the application details.',
@@ -1224,7 +1224,7 @@ en: {
   's4t':'Appointment support','s4d':'We explain the official appointment process and can assist with available booking steps within the agreed scope of our services. Interview dates are subject to availability and the rules of the relevant U.S. authorities.',
   's5t':'Interview preparation','s5d':'Question review, expert guidance and personalized mock interview practice.',
   's6t':'Ongoing support','s6d':'Stay connected with your World Pass specialist throughout the process.',
-  'cs.eyebrow':'Complex cases','cs.h2':'Not sure how strong <em>your case is?</em>','cs.sub':"Let's assess your situation before you start the application.",
+  'cs.eyebrow':'Complex cases','cs.h2':'Not sure how strong <em>your case&nbsp;is?</em>','cs.sub':"Let's assess your situation before you start the application.",
   'c1t':'Applying for the first time','c1d':"Never applied for a U.S. visa? We'll explain the process and what matters in your application.",
   'c2t':'Previous refusal','c2d':"We'll review your previous application and help you prepare more carefully for the next one.",
   'c3t':'Limited travel history','c3d':"Not much international travel? We'll assess your circumstances and help you prepare an accurate application.",
@@ -1300,7 +1300,7 @@ ru: {
   's4t':'Запись','s4d':'Разъясняем официальный процесс записи и помогаем с доступными шагами бронирования в рамках согласованного объёма услуг. Даты собеседования зависят от наличия свободных мест и правил соответствующих органов США.',
   's5t':'Подготовка к интервью','s5d':'Разбираем возможные вопросы и ключевые моменты вашего кейса. Проводим тренировки и разбор интервью.',
   's6t':'Сопровождение','s6d':'Остаёмся на связи на протяжении всего процесса.',
-  'cs.eyebrow':'Сложные случаи','cs.h2':'Не уверены, что ваш кейс <em>достаточно сильный?</em>','cs.sub':'Разберём ситуацию до начала оформления.',
+  'cs.eyebrow':'Сложные случаи','cs.h2':'Не уверены, что ваш кейс <em>достаточно&nbsp;сильный?</em>','cs.sub':'Разберём ситуацию до начала оформления.',
   'c1t':'Первый раз','c1d':'Никогда не получали визу США и не знаете, с чего начать.',
   'c2t':'Был отказ','c2d':'Хотите понять обстоятельства предыдущего отказа и подготовиться к новой подаче.',
   'c3t':'Нет визовой истории','c3d':'Есть вопросы по подготовке первой подачи.',
