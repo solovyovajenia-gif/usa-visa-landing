@@ -15,6 +15,7 @@ $cfg = file_exists(__DIR__ . '/config.php') ? include __DIR__ . '/config.php' : 
 $MAIL_TO   = $cfg['mail_to']   ?? 'info@worldpass.ae';
 $MAIL_FROM = $cfg['mail_from'] ?? 'leads@usatravel.ae';
 $KOMMO     = $cfg['kommo']     ?? null;
+$TG        = $cfg['telegram']  ?? (file_exists(__DIR__ . '/telegram.php') ? include __DIR__ . '/telegram.php' : null);
 
 $f = fn($k) => trim(mb_substr((string)($_POST[$k] ?? ''), 0, 500));
 $name      = $f('fname');
@@ -67,6 +68,16 @@ function kommo_call(array $k, string $method, string $path, $payload = null) {
   return [$code, json_decode((string)$resp, true), (string)$resp];
 }
 
+/** Уведомление в Telegram (копия каждой заявки + статус Kommo) */
+function tg_send(?array $tg, string $html): void {
+  if (!$tg || empty($tg['token']) || empty($tg['chat_id'])) return;
+  $ch = curl_init("https://api.telegram.org/bot{$tg['token']}/sendMessage");
+  curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 8,
+    CURLOPT_POSTFIELDS => http_build_query(['chat_id' => $tg['chat_id'], 'text' => $html, 'parse_mode' => 'HTML', 'disable_web_page_preview' => true])]);
+  $r = curl_exec($ch); curl_close($ch);
+  if (!$r || strpos((string)$r, '"ok":true') === false) @file_put_contents(__DIR__ . '/leads.log', "TELEGRAM ERROR: " . substr((string)$r, 0, 200) . "\n", FILE_APPEND | LOCK_EX);
+}
+
 /** Поле контакта «Country of Residence» (multiselect): id поля и enum_id значения. Кэш в .kommo_fields.json на сутки. */
 function kommo_residence_enum(array $k, string $residence): ?array {
   $cache = __DIR__ . '/.kommo_fields.json';
@@ -97,7 +108,7 @@ function kommo_residence_enum(array $k, string $residence): ?array {
   return null;
 }
 
-$kommo_ok = null; $kommo_note = '';
+$kommo_ok = null; $kommo_note = ''; $kommo_lead_id = null; $kommo_err = '';
 if ($KOMMO && !empty($KOMMO['token']) && !empty($KOMMO['subdomain'])) {
   $res = ($residence !== '') ? kommo_residence_enum($KOMMO, $residence) : null;
   if ($residence !== '' && !$res) $kommo_note = 'residence field not found';
@@ -145,12 +156,29 @@ if ($KOMMO && !empty($KOMMO['token']) && !empty($KOMMO['subdomain'])) {
     [$code, $data, $raw] = kommo_call($KOMMO, 'POST', 'leads/unsorted/forms', $payload);
   }
   $kommo_ok = ($code >= 200 && $code < 300);
+  $kommo_err = $kommo_ok ? '' : "HTTP $code: " . substr(preg_replace('/\s+/', ' ', strip_tags((string)$raw)), 0, 160);
   if ($kommo_ok) {
     $lead_id = $data['_embedded']['unsorted'][0]['_embedded']['leads'][0]['id'] ?? null;
+    $kommo_lead_id = $lead_id;
     if ($lead_id) kommo_call($KOMMO, 'POST', "leads/$lead_id/notes", [[ 'note_type' => 'common', 'params' => ['text' => $body] ]]);
   } else {
     @file_put_contents(__DIR__ . '/leads.log', "KOMMO ERROR $code: " . substr($raw, 0, 300) . "\n", FILE_APPEND | LOCK_EX);
   }
 }
+
+// ---------- Telegram: копия заявки ----------
+$h = fn($v) => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
+$kline = $kommo_ok === null ? '⚪️ Kommo: не настроен'
+       : ($kommo_ok ? '✅ Kommo: сделка #' . ($kommo_lead_id ?? '?') . ' создана' : '❌ Kommo: НЕ создана — ' . $h($kommo_err ?? ''));
+$utmline = $utm ? ($h($utm['utm_source'] ?? '—') . ' / ' . $h($utm['utm_campaign'] ?? '—')) : 'прямой заход';
+tg_send($TG,
+  "🇺🇸 <b>usatravel.ae — новая заявка</b>\n" .
+  "<b>Имя:</b> " . $h($name) . "\n" .
+  "<b>Телефон:</b> " . $h($phone) . "\n" .
+  ($residence !== '' ? "<b>Страна проживания:</b> " . $h($residence) . "\n" : '') .
+  "<b>Форма:</b> " . $h($form_name ?? $f('form') ?: '—') . "\n" .
+  "<b>Источник:</b> " . $utmline . "\n" .
+  ($mailed === null ? '' : ($mailed ? "📧 Письмо отправлено\n" : "⚠️ Письмо НЕ отправлено\n")) .
+  $kline);
 
 echo json_encode(['ok' => true, 'mail' => (bool)$mailed, 'kommo' => $kommo_ok, 'note' => $kommo_note]);
