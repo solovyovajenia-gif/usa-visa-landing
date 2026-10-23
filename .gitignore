@@ -3,3 +3,4 @@
 deploy/telegram.php
 deploy/config.php
 deploy/leads.log
+deploy/pending.jsonl

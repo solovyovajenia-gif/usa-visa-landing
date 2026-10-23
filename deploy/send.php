@@ -16,6 +16,8 @@ $MAIL_TO   = $cfg['mail_to']   ?? 'info@worldpass.ae';
 $MAIL_FROM = $cfg['mail_from'] ?? 'leads@usatravel.ae';
 $KOMMO     = $cfg['kommo']     ?? null;
 $TG        = $cfg['telegram']  ?? (file_exists(__DIR__ . '/telegram.php') ? include __DIR__ . '/telegram.php' : null);
+// повторная отправка из очереди (retry.php по cron): письмо не дублируем, в очередь не кладём
+$isRetry   = !empty($_POST['_retry']) && !empty($TG['retry_key']) && hash_equals((string)$TG['retry_key'], (string)($_POST['_retry_key'] ?? ''));
 
 $f = fn($k) => trim(mb_substr((string)($_POST[$k] ?? ''), 0, 500));
 $name      = $f('fname');
@@ -52,7 +54,7 @@ $body = implode("\n", $lines);
 // 1) письмо
 $subject = '=?UTF-8?B?' . base64_encode("Заявка usatravel.ae: $name, $phone") . '?=';
 $headers = "From: World Pass Leads <$MAIL_FROM>\r\nReply-To: $MAIL_FROM\r\nContent-Type: text/plain; charset=UTF-8\r\n";
-$mailed = @mail($MAIL_TO, $subject, $body, $headers);
+$mailed = $isRetry ? null : @mail($MAIL_TO, $subject, $body, $headers);
 
 // ---------- Kommo ----------
 function kommo_call(array $k, string $method, string $path, $payload = null) {
@@ -163,16 +165,21 @@ if ($KOMMO && !empty($KOMMO['token']) && !empty($KOMMO['subdomain'])) {
     if ($lead_id) kommo_call($KOMMO, 'POST', "leads/$lead_id/notes", [[ 'note_type' => 'common', 'params' => ['text' => $body] ]]);
   } else {
     @file_put_contents(__DIR__ . '/leads.log', "KOMMO ERROR $code: " . substr($raw, 0, 300) . "\n", FILE_APPEND | LOCK_EX);
+    if (!$isRetry) { // в очередь на один повтор через 10 минут (retry.php)
+      $q = $_POST; unset($q['website'], $q['_retry'], $q['_retry_key']);
+      @file_put_contents(__DIR__ . '/pending.jsonl', json_encode(['ts' => time(), 'post' => $q], JSON_UNESCAPED_UNICODE) . "\n", FILE_APPEND | LOCK_EX);
+    }
   }
 }
 
 // ---------- Telegram: копия заявки ----------
 $h = fn($v) => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
 $kline = $kommo_ok === null ? '⚪️ Kommo: не настроен'
-       : ($kommo_ok ? '✅ Kommo: сделка #' . ($kommo_lead_id ?? '?') . ' создана' : '❌ Kommo: НЕ создана — ' . $h($kommo_err ?? ''));
+       : ($kommo_ok ? '✅ Kommo: сделка #' . ($kommo_lead_id ?? '?') . ' создана' . ($isRetry ? ' (повтор)' : '')
+                    : '❌ Kommo: НЕ создана — ' . $h($kommo_err ?? '') . ($isRetry ? "\n⚠️ Повтор не удался — завести вручную" : "\n🔁 Повтор через 10 минут"));
 $utmline = $utm ? ($h($utm['utm_source'] ?? '—') . ' / ' . $h($utm['utm_campaign'] ?? '—')) : 'прямой заход';
 tg_send($TG,
-  "🇺🇸 <b>usatravel.ae — новая заявка</b>\n" .
+  ($isRetry ? "♻️ <b>usatravel.ae — повтор заявки</b>\n" : "🇺🇸 <b>usatravel.ae — новая заявка</b>\n") .
   "<b>Имя:</b> " . $h($name) . "\n" .
   "<b>Телефон:</b> " . $h($phone) . "\n" .
   ($residence !== '' ? "<b>Страна проживания:</b> " . $h($residence) . "\n" : '') .
