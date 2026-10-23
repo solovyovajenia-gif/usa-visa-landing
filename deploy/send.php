@@ -103,6 +103,9 @@ if ($KOMMO && !empty($KOMMO['token']) && !empty($KOMMO['subdomain'])) {
   if ($residence !== '' && !$res) $kommo_note = 'residence field not found';
 
   $lead = [ 'name' => "$service — $name" ];
+  // поле сделки «Source» → «USA website» (иначе автоматизация Kommo ставит «Agent»)
+  $srcField = (int)($KOMMO['source_field_id'] ?? 432700); $srcEnum = (int)($KOMMO['source_enum_id'] ?? 454630);
+  if ($srcField && $srcEnum) $lead['custom_fields_values'] = [[ 'field_id' => $srcField, 'values' => [['enum_id' => $srcEnum]] ]];
   if (!empty($KOMMO['tags'])) $lead['_embedded'] = ['tags' => array_map(fn($t) => ['name' => $t], $KOMMO['tags'])];
 
   $form_name = $f('form') ?: 'usatravel.ae — Case Assessment';
@@ -135,9 +138,10 @@ if ($KOMMO && !empty($KOMMO['token']) && !empty($KOMMO['subdomain'])) {
 
   [$code, $data, $raw] = kommo_call($KOMMO, 'POST', 'leads/unsorted/forms', $payload);
   // если Kommo отклонил кастомное поле (например, его удалили) — повторяем без него; страна и так есть в примечании
-  if ($code === 400 && $res && strpos($raw, 'custom_fields_values') !== false) {
+  if ($code === 400 && strpos($raw, 'custom_fields_values') !== false) {
     $payload[0]['_embedded']['contacts'][0]['custom_fields_values'] = [[ 'field_code' => 'PHONE', 'values' => [['value' => $phone, 'enum_code' => 'WORK']] ]];
-    @file_put_contents(__DIR__ . '/leads.log', "KOMMO retry without residence field (400): " . substr($raw, 0, 200) . "\n", FILE_APPEND | LOCK_EX);
+    unset($payload[0]['_embedded']['leads'][0]['custom_fields_values']);
+    @file_put_contents(__DIR__ . '/leads.log', "KOMMO retry without custom fields (400): " . substr($raw, 0, 200) . "\n", FILE_APPEND | LOCK_EX);
     [$code, $data, $raw] = kommo_call($KOMMO, 'POST', 'leads/unsorted/forms', $payload);
   }
   $kommo_ok = ($code >= 200 && $code < 300);
