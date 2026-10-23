@@ -67,36 +67,42 @@ function kommo_call(array $k, string $method, string $path, $payload = null) {
   return [$code, json_decode((string)$resp, true), (string)$resp];
 }
 
-/** id поля сделки «Country of Residence»: из config, иначе ищем по имени и кэшируем в .kommo_fields.json */
-function kommo_field_exists(array $k, int $id): bool {
-  [$code] = kommo_call($k, 'GET', "leads/custom_fields/$id");
-  return $code === 200;
-}
-function kommo_residence_field_id(array $k): ?int {
-  // id из config или кэша используем только если поле всё ещё существует в Kommo (его могли удалить)
-  if (!empty($k['residence_field_id'])) { $id = (int)$k['residence_field_id']; if (kommo_field_exists($k, $id)) return $id; }
+/** Поле контакта «Country of Residence» (multiselect): id поля и enum_id значения. Кэш в .kommo_fields.json на сутки. */
+function kommo_residence_enum(array $k, string $residence): ?array {
   $cache = __DIR__ . '/.kommo_fields.json';
-  if (file_exists($cache)) { $c = json_decode((string)file_get_contents($cache), true); if (!empty($c['residence'])) { $id = (int)$c['residence']; if (kommo_field_exists($k, $id)) return $id; @unlink($cache); } }
-  $names = array_map('mb_strtolower', $k['residence_field_names'] ?? ['Country of Residence', 'Country of residence', 'Residence', 'Страна проживания']);
-  $page = 1; $found = null;
-  while ($page <= 5 && !$found) {
-    [$code, $data] = kommo_call($k, 'GET', "leads/custom_fields?limit=250&page=$page");
-    $fields = $data['_embedded']['custom_fields'] ?? [];
-    if ($code !== 200 || !$fields) break;
-    foreach ($fields as $fld) if (in_array(mb_strtolower(trim($fld['name'] ?? '')), $names, true)) { $found = (int)$fld['id']; break; }
-    $page++;
+  $f = null;
+  if (file_exists($cache) && time() - filemtime($cache) < 86400) { $c = json_decode((string)file_get_contents($cache), true); if (!empty($c['contact_residence'])) $f = $c['contact_residence']; }
+  if (!$f) {
+    $names = array_map('mb_strtolower', $k['residence_field_names'] ?? ['Country of Residence', 'Country of residence', 'Residence', 'Страна проживания']);
+    for ($page = 1; $page <= 5 && !$f; $page++) {
+      [$code, $data] = kommo_call($k, 'GET', "contacts/custom_fields?limit=250&page=$page");
+      $fields = $data['_embedded']['custom_fields'] ?? [];
+      if ($code !== 200 || !$fields) break;
+      foreach ($fields as $fld) if (in_array(mb_strtolower(trim($fld['name'] ?? '')), $names, true)) {
+        $f = ['id' => (int)$fld['id'], 'type' => $fld['type'] ?? '', 'enums' => []];
+        foreach ($fld['enums'] ?? [] as $e) $f['enums'][mb_strtolower(trim($e['value']))] = (int)$e['id'];
+        break;
+      }
+    }
+    if ($f) @file_put_contents($cache, json_encode(['contact_residence' => $f]));
   }
-  if ($found) @file_put_contents($cache, json_encode(['residence' => $found]));
-  return $found;
+  if (!$f) return null;
+  if (empty($f['enums'])) return ['field_id' => $f['id'], 'value' => $residence]; // текстовое поле
+  // RU → EN для списка стран с сайта
+  static $ru = ['оаэ'=>'united arab emirates','россия'=>'russia','казахстан'=>'kazakhstan','узбекистан'=>'uzbekistan','армения'=>'armenia','грузия'=>'georgia','азербайджан'=>'azerbaijan','кыргызстан'=>'kyrgyzstan','беларусь'=>'belarus','украина'=>'ukraine','турция'=>'turkey','сербия'=>'serbia','кипр'=>'cyprus','черногория'=>'montenegro','таиланд'=>'thailand','индонезия (бали)'=>'indonesia','индия'=>'india','пакистан'=>'pakistan','египет'=>'egypt','саудовская аравия'=>'saudi arabia','катар'=>'qatar','оман'=>'oman','кувейт'=>'kuwait','бахрейн'=>'bahrain','иордания'=>'jordan','ливан'=>'lebanon','марокко'=>'morocco','нигерия'=>'nigeria','кения'=>'kenya','юар'=>'south africa','великобритания'=>'united kingdom','германия'=>'germany','франция'=>'france','испания'=>'spain','италия'=>'italy','португалия'=>'portugal','нидерланды'=>'netherlands','польша'=>'poland','чехия'=>'czech republic','израиль'=>'israel','канада'=>'canada','мексика'=>'mexico','бразилия'=>'brazil','аргентина'=>'argentina','китай'=>'china','филиппины'=>'philippines','вьетнам'=>'vietnam','малайзия'=>'malaysia','сингапур'=>'singapore','таджикистан'=>'tajikistan','uae'=>'united arab emirates','indonesia (bali)'=>'indonesia','другая страна'=>'other'];
+  $key = mb_strtolower(trim($residence));
+  if (isset($ru[$key])) $key = $ru[$key];
+  if (isset($f['enums'][$key])) return ['field_id' => $f['id'], 'enum_id' => $f['enums'][$key]];
+  if (isset($f['enums']['other'])) return ['field_id' => $f['id'], 'enum_id' => $f['enums']['other']];
+  return null;
 }
 
 $kommo_ok = null; $kommo_note = '';
 if ($KOMMO && !empty($KOMMO['token']) && !empty($KOMMO['subdomain'])) {
-  $fid = ($residence !== '') ? kommo_residence_field_id($KOMMO) : null;
-  if ($residence !== '' && !$fid) $kommo_note = 'residence field not found';
+  $res = ($residence !== '') ? kommo_residence_enum($KOMMO, $residence) : null;
+  if ($residence !== '' && !$res) $kommo_note = 'residence field not found';
 
   $lead = [ 'name' => "$service — $name" ];
-  if ($fid) $lead['custom_fields_values'] = [[ 'field_id' => $fid, 'values' => [['value' => $residence]] ]];
   if (!empty($KOMMO['tags'])) $lead['_embedded'] = ['tags' => array_map(fn($t) => ['name' => $t], $KOMMO['tags'])];
 
   $form_name = $f('form') ?: 'usatravel.ae — Case Assessment';
@@ -118,7 +124,10 @@ if ($KOMMO && !empty($KOMMO['token']) && !empty($KOMMO['subdomain'])) {
       'leads'    => [$lead],
       'contacts' => [[
         'name' => $name,
-        'custom_fields_values' => [[ 'field_code' => 'PHONE', 'values' => [['value' => $phone, 'enum_code' => 'WORK']] ]],
+        'custom_fields_values' => array_values(array_filter([
+          [ 'field_code' => 'PHONE', 'values' => [['value' => $phone, 'enum_code' => 'WORK']] ],
+          $res ? [ 'field_id' => $res['field_id'], 'values' => [ isset($res['enum_id']) ? ['enum_id' => $res['enum_id']] : ['value' => $res['value']] ] ] : null,
+        ])),
       ]],
     ],
   ]];
@@ -126,8 +135,8 @@ if ($KOMMO && !empty($KOMMO['token']) && !empty($KOMMO['subdomain'])) {
 
   [$code, $data, $raw] = kommo_call($KOMMO, 'POST', 'leads/unsorted/forms', $payload);
   // если Kommo отклонил кастомное поле (например, его удалили) — повторяем без него; страна и так есть в примечании
-  if ($code === 400 && $fid && strpos($raw, 'custom_fields_values') !== false) {
-    unset($payload[0]['_embedded']['leads'][0]['custom_fields_values']);
+  if ($code === 400 && $res && strpos($raw, 'custom_fields_values') !== false) {
+    $payload[0]['_embedded']['contacts'][0]['custom_fields_values'] = [[ 'field_code' => 'PHONE', 'values' => [['value' => $phone, 'enum_code' => 'WORK']] ]];
     @file_put_contents(__DIR__ . '/leads.log', "KOMMO retry without residence field (400): " . substr($raw, 0, 200) . "\n", FILE_APPEND | LOCK_EX);
     [$code, $data, $raw] = kommo_call($KOMMO, 'POST', 'leads/unsorted/forms', $payload);
   }
