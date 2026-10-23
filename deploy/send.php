@@ -68,10 +68,15 @@ function kommo_call(array $k, string $method, string $path, $payload = null) {
 }
 
 /** id поля сделки «Country of Residence»: из config, иначе ищем по имени и кэшируем в .kommo_fields.json */
+function kommo_field_exists(array $k, int $id): bool {
+  [$code] = kommo_call($k, 'GET', "leads/custom_fields/$id");
+  return $code === 200;
+}
 function kommo_residence_field_id(array $k): ?int {
-  if (!empty($k['residence_field_id'])) return (int)$k['residence_field_id'];
+  // id из config или кэша используем только если поле всё ещё существует в Kommo (его могли удалить)
+  if (!empty($k['residence_field_id'])) { $id = (int)$k['residence_field_id']; if (kommo_field_exists($k, $id)) return $id; }
   $cache = __DIR__ . '/.kommo_fields.json';
-  if (file_exists($cache)) { $c = json_decode((string)file_get_contents($cache), true); if (!empty($c['residence'])) return (int)$c['residence']; }
+  if (file_exists($cache)) { $c = json_decode((string)file_get_contents($cache), true); if (!empty($c['residence'])) { $id = (int)$c['residence']; if (kommo_field_exists($k, $id)) return $id; @unlink($cache); } }
   $names = array_map('mb_strtolower', $k['residence_field_names'] ?? ['Country of Residence', 'Country of residence', 'Residence', 'Страна проживания']);
   $page = 1; $found = null;
   while ($page <= 5 && !$found) {
@@ -120,6 +125,12 @@ if ($KOMMO && !empty($KOMMO['token']) && !empty($KOMMO['subdomain'])) {
   $payload[0] = array_filter($payload[0], fn($v) => $v !== null);
 
   [$code, $data, $raw] = kommo_call($KOMMO, 'POST', 'leads/unsorted/forms', $payload);
+  // если Kommo отклонил кастомное поле (например, его удалили) — повторяем без него; страна и так есть в примечании
+  if ($code === 400 && $fid && strpos($raw, 'custom_fields_values') !== false) {
+    unset($payload[0]['_embedded']['leads'][0]['custom_fields_values']);
+    @file_put_contents(__DIR__ . '/leads.log', "KOMMO retry without residence field (400): " . substr($raw, 0, 200) . "\n", FILE_APPEND | LOCK_EX);
+    [$code, $data, $raw] = kommo_call($KOMMO, 'POST', 'leads/unsorted/forms', $payload);
+  }
   $kommo_ok = ($code >= 200 && $code < 300);
   if ($kommo_ok) {
     $lead_id = $data['_embedded']['unsorted'][0]['_embedded']['leads'][0]['id'] ?? null;
