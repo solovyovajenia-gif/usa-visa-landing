@@ -31,7 +31,8 @@ $utm       = [];
 foreach (['utm_source','utm_campaign','utm_medium','utm_term','utm_content'] as $u) if ($f($u) !== '') $utm[$u] = $f($u);
 
 // защита от ботов: пустое имя/телефон или honeypot
-if ($name === '' || strlen(preg_replace('/\D/', '', $phone)) < 7 || !empty($_POST['website'])) {
+$digits = preg_replace('/\D/', '', $phone);
+if ($name === '' || strpos(ltrim($f('phone')), '+') !== 0 || strlen($digits) < 8 || strlen($digits) > 15 || !empty($_POST['website'])) {
   http_response_code(400); echo '{"ok":false,"error":"invalid"}'; exit;
 }
 
