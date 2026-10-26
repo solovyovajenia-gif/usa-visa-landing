@@ -1430,14 +1430,13 @@ function setLang(lang){
   const closeOv = () => overlay.classList.remove('on');
   overlay.addEventListener('click', e => { if (e.target === overlay) closeOv(); });
   overlay.querySelectorAll('.success-close,.success-ok').forEach(b => b.addEventListener('click', closeOv));
-  document.querySelectorAll('.lead-form input.phone').forEach(p => p.addEventListener('focus', () => { if (!p.value.trim()) p.value = '+'; }));
 
   document.querySelectorAll('.lead-form').forEach(f => f.addEventListener('submit', e => {
     e.preventDefault();
     let ok = true;
     f.querySelectorAll('[required]').forEach(i => {
       const digits = i.value.replace(/\D/g, '');
-      const bad = !i.value.trim() || (i.classList.contains('phone') && (!/^\s*\+/.test(i.value) || digits.length < 8 || digits.length > 15));
+      const bad = !i.value.trim() || (i.classList.contains('phone') && (!/^\s*\+/.test(i.value) || digits.length < 8 || digits.length > 15 || digits[0] === '0'));
       i.style.borderColor = bad ? '#C0504D' : ''; ok = ok && !bad;
     });
     if (!ok) return;

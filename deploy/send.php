@@ -32,7 +32,7 @@ foreach (['utm_source','utm_campaign','utm_medium','utm_term','utm_content'] as 
 
 // защита от ботов: пустое имя/телефон или honeypot
 $digits = preg_replace('/\D/', '', $phone);
-if ($name === '' || strpos(ltrim($f('phone')), '+') !== 0 || strlen($digits) < 8 || strlen($digits) > 15 || !empty($_POST['website'])) {
+if ($name === '' || strpos(ltrim($f('phone')), '+') !== 0 || strlen($digits) < 8 || strlen($digits) > 15 || $digits[0] === '0' || !empty($_POST['website'])) {
   http_response_code(400); echo '{"ok":false,"error":"invalid"}'; exit;
 }
 
