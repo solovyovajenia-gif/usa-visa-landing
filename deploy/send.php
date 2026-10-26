@@ -118,7 +118,12 @@ if ($KOMMO && !empty($KOMMO['token']) && !empty($KOMMO['subdomain'])) {
   $lead = [ 'name' => "$service — $name" ];
   // поле сделки «Source» → «USA website» (иначе автоматизация Kommo ставит «Agent»)
   $srcField = (int)($KOMMO['source_field_id'] ?? 432700); $srcEnum = (int)($KOMMO['source_enum_id'] ?? 454630);
-  if ($srcField && $srcEnum) $lead['custom_fields_values'] = [[ 'field_id' => $srcField, 'values' => [['enum_id' => $srcEnum]] ]];
+  $lf = [];
+  if ($srcField && $srcEnum) $lf[] = [ 'field_id' => $srcField, 'values' => [['enum_id' => $srcEnum]] ];
+  // UTM → поля сделки (tracking data), чтобы работала аналитика/атрибуция
+  $UTM_FIELDS = ['utm_source'=>325784,'utm_medium'=>325780,'utm_campaign'=>325782,'utm_term'=>325786,'utm_content'=>325778];
+  foreach ($UTM_FIELDS as $k => $fid) if (!empty($utm[$k])) $lf[] = [ 'field_id' => $fid, 'values' => [['value' => $utm[$k]]] ];
+  if ($lf) $lead['custom_fields_values'] = $lf;
   if (!empty($KOMMO['tags'])) $lead['_embedded'] = ['tags' => array_map(fn($t) => ['name' => $t], $KOMMO['tags'])];
 
   $form_name = $f('form') ?: 'usatravel.ae — Case Assessment';
