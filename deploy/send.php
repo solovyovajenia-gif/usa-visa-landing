@@ -129,8 +129,8 @@ if ($KOMMO && !empty($KOMMO['token']) && !empty($KOMMO['subdomain'])) {
   $form_name = $f('form') ?: 'usatravel.ae — Case Assessment';
   // «Неразобранное» (Incoming leads): сделка без ответственного, менеджер принимает её сам
   $payload = [[
-    'source_uid'  => 'usatravel.ae-' . bin2hex(random_bytes(8)),
-    'source_name' => 'usatravel.ae',
+    'source_uid'  => kommo_site_source_uid($KOMMO),
+    'source_name' => $KOMMO['source_display_name'] ?? 'USA website',
     'pipeline_id' => (int)($KOMMO['pipeline_id'] ?? 0) ?: null,
     'created_at'  => time(),
     'metadata' => [
