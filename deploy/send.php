@@ -70,6 +70,28 @@ function kommo_call(array $k, string $method, string $path, $payload = null) {
   return [$code, json_decode((string)$resp, true), (string)$resp];
 }
 
+/** Источник сделки в Kommo: регистрируем свой («USA website», external_id usatravel.ae) один раз и кэшируем.
+ *  Без зарегистрированного источника Kommo подставляет источник воронки по умолчанию (у нас — WhatsApp/WABA). */
+function kommo_site_source_uid(array $k): string {
+  $ext = $k['source_external_id'] ?? 'usatravel.ae';
+  $cache = __DIR__ . '/.kommo_source.json';
+  if (file_exists($cache)) { $c = json_decode((string)file_get_contents($cache), true); if (!empty($c['external_id'])) return $c['external_id']; }
+  [$code, $data] = kommo_call($k, 'GET', 'sources?limit=50');
+  $found = null;
+  foreach (($data['_embedded']['sources'] ?? []) as $s) if (($s['external_id'] ?? '') === $ext) { $found = $s; break; }
+  if (!$found && $code !== 401 && $code !== 403) {
+    [$code2, $data2] = kommo_call($k, 'POST', 'sources', [[
+      'name' => $k['source_display_name'] ?? 'USA website',
+      'external_id' => $ext,
+      'pipeline_id' => (int)($k['pipeline_id'] ?? 0) ?: null,
+      'default' => false,
+    ]]);
+    $found = $data2['_embedded']['sources'][0] ?? null;
+  }
+  if ($found) @file_put_contents($cache, json_encode(['external_id' => $ext, 'id' => $found['id'] ?? null]));
+  return $ext;
+}
+
 /** Уведомление в Telegram (копия каждой заявки + статус Kommo) */
 function tg_send(?array $tg, string $html): void {
   if (!$tg || empty($tg['token']) || empty($tg['chat_id'])) return;
