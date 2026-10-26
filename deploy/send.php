@@ -22,6 +22,7 @@ $isRetry   = !empty($_POST['_retry']) && !empty($TG['retry_key']) && hash_equals
 $f = fn($k) => trim(mb_substr((string)($_POST[$k] ?? ''), 0, 500));
 $name      = $f('fname');
 $phone     = preg_replace('/[^\d+ ]/', '', $f('phone'));
+$alt       = $f('alt');
 $residence = $f('residence');
 $msg       = $f('msg');
 $service   = $f('service') ?: 'USA Visa B1/B2';
@@ -40,6 +41,7 @@ $lines = [
   "Новая заявка — $service",
   "Имя: $name",
   "Телефон: $phone",
+  ...($alt !== '' ? ["Альтернативный контакт: $alt"] : []),
   "Страна проживания: $residence",
   "Комментарий: $msg",
   "Страница: $url",
@@ -209,6 +211,7 @@ tg_send($TG,
   ($isRetry ? "♻️ <b>usatravel.ae — повтор заявки</b>\n" : "🇺🇸 <b>usatravel.ae — новая заявка</b>\n") .
   "<b>Имя:</b> " . $h($name) . "\n" .
   "<b>Телефон:</b> " . $h($phone) . "\n" .
+  ($alt !== '' ? "<b>Альтернативный контакт:</b> " . $h($alt) . "\n" : '') .
   ($residence !== '' ? "<b>Страна проживания:</b> " . $h($residence) . "\n" : '') .
   "<b>Форма:</b> " . $h($form_name ?? $f('form') ?: '—') . "\n" .
   "<b>Источник:</b> " . $utmline . "\n" .
