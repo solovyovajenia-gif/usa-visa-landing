@@ -49,6 +49,17 @@ $lines = [
   "Время: $when (сервер), IP: $ip",
 ];
 $body = implode("\n", $lines);
+// заметка в Kommo — на английском (интерфейс CRM английский), формат как на worldpass.ae
+$note = implode("\n", array_values(array_filter([
+  "Form: " . ($f('form') ?: 'Case Assessment'),
+  "Name: $name",
+  "Phone: $phone",
+  $alt !== '' ? "Telegram/WhatsApp/Email: $alt" : null,
+  "Country of residence: $residence",
+  "Site language: " . strtoupper($f('lang') ?: ((preg_match('/Lang: (\w+)/', $msg, $m)) ? $m[1] : '')),
+  "Page: $url",
+  "IP: $ip",
+])));
 
 // 3) лог
 @file_put_contents(__DIR__ . '/leads.log', str_replace("\n", ' | ', $body) . "\n", FILE_APPEND | LOCK_EX);
@@ -191,7 +202,7 @@ if ($KOMMO && !empty($KOMMO['token']) && !empty($KOMMO['subdomain'])) {
   if ($kommo_ok) {
     $lead_id = $data['_embedded']['unsorted'][0]['_embedded']['leads'][0]['id'] ?? null;
     $kommo_lead_id = $lead_id;
-    if ($lead_id) kommo_call($KOMMO, 'POST', "leads/$lead_id/notes", [[ 'note_type' => 'common', 'params' => ['text' => $body] ]]);
+    if ($lead_id) kommo_call($KOMMO, 'POST', "leads/$lead_id/notes", [[ 'note_type' => 'common', 'params' => ['text' => $note] ]]);
   } else {
     @file_put_contents(__DIR__ . '/leads.log', "KOMMO ERROR $code: " . substr($raw, 0, 300) . "\n", FILE_APPEND | LOCK_EX);
     if (!$isRetry) { // в очередь на один повтор через 10 минут (retry.php)
