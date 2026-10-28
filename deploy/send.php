@@ -46,7 +46,6 @@ $lines = [
   "Страна проживания: $residence",
   "Комментарий: $msg",
   "Страница: $url",
-  $utm ? 'UTM: ' . http_build_query($utm, '', ', ') : 'UTM: —',
   "Время: $when (сервер), IP: $ip",
 ];
 $body = implode("\n", $lines);
