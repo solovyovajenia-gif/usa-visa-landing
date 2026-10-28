@@ -1555,7 +1555,7 @@ function setLang(lang){
     fd.append('residence', f.country.value.trim());
     fd.append('form', f.dataset.formName);
     // страна проживания пока уходит в комментарий
-    fd.append('msg', `Country of residence: ${f.country.value.trim()} · Form: ${f.dataset.formName} · Lang: ${document.documentElement.lang.toUpperCase()}`);
+    fd.append('msg', `Form: ${f.dataset.formName} · Lang: ${document.documentElement.lang.toUpperCase()}`);
     CRM.send(fd);
     if (window.gtag) gtag('event', 'generate_lead', { form_id: f.id || 'lead_form' });
     if (window.ym) ym(113579110, 'reachGoal', 'lead');
