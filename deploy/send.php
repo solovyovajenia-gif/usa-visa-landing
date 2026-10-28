@@ -25,6 +25,9 @@ $phone     = preg_replace('/[^\d+ ]/', '', $f('phone'));
 $alt       = $f('alt');
 // если в альтернативном контакте указан e-mail — он уйдёт в поле Email контакта в Kommo
 $altEmail  = filter_var(trim($alt), FILTER_VALIDATE_EMAIL) ? strtolower(trim($alt)) : '';
+// ник Telegram (не e-mail и меньше 7 цифр, т.е. не номер) — в поле контакта «Telegram username» (как на worldpass.ae);
+// номер WhatsApp остаётся только в заметке
+$altTg     = ($alt !== '' && $altEmail === '' && strlen(preg_replace('/\D/', '', $alt)) < 7) ? trim($alt) : '';
 $residence = $f('residence');
 $msg       = $f('msg');
 $service   = $f('service') ?: 'USA Visa B1/B2';
@@ -185,6 +188,7 @@ if ($KOMMO && !empty($KOMMO['token']) && !empty($KOMMO['subdomain'])) {
         'custom_fields_values' => array_values(array_filter([
           [ 'field_code' => 'PHONE', 'values' => [['value' => $phone, 'enum_code' => 'WORK']] ],
           $altEmail !== '' ? [ 'field_code' => 'EMAIL', 'values' => [['value' => $altEmail, 'enum_code' => 'WORK']] ] : null,
+          $altTg !== '' ? [ 'field_id' => (int)($KOMMO['tg_field_id'] ?? 538334), 'values' => [['value' => $altTg]] ] : null,
           $res ? [ 'field_id' => $res['field_id'], 'values' => [ isset($res['enum_id']) ? ['enum_id' => $res['enum_id']] : ['value' => $res['value']] ] ] : null,
         ])),
       ]],
