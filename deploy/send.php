@@ -23,6 +23,8 @@ $f = fn($k) => trim(mb_substr((string)($_POST[$k] ?? ''), 0, 500));
 $name      = $f('fname');
 $phone     = preg_replace('/[^\d+ ]/', '', $f('phone'));
 $alt       = $f('alt');
+// если в альтернативном контакте указан e-mail — он уйдёт в поле Email контакта в Kommo
+$altEmail  = filter_var(trim($alt), FILTER_VALIDATE_EMAIL) ? strtolower(trim($alt)) : '';
 $residence = $f('residence');
 $msg       = $f('msg');
 $service   = $f('service') ?: 'USA Visa B1/B2';
@@ -182,6 +184,7 @@ if ($KOMMO && !empty($KOMMO['token']) && !empty($KOMMO['subdomain'])) {
         'name' => $name,
         'custom_fields_values' => array_values(array_filter([
           [ 'field_code' => 'PHONE', 'values' => [['value' => $phone, 'enum_code' => 'WORK']] ],
+          $altEmail !== '' ? [ 'field_code' => 'EMAIL', 'values' => [['value' => $altEmail, 'enum_code' => 'WORK']] ] : null,
           $res ? [ 'field_id' => $res['field_id'], 'values' => [ isset($res['enum_id']) ? ['enum_id' => $res['enum_id']] : ['value' => $res['value']] ] ] : null,
         ])),
       ]],
