@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /send.php
+Disallow: /privacy.html
+
+Sitemap: https://usatravel.ae/sitemap.xml
