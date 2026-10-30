@@ -62,7 +62,8 @@ $note = implode("\n", array_values(array_filter([
   $alt !== '' ? "Telegram/WhatsApp/Email: $alt" : null,
   "Country of residence: $residence",
   "Site language: " . strtoupper($f('lang') ?: ((preg_match('/Lang: (\w+)/', $msg, $m)) ? $m[1] : '')),
-  "Page: $url",
+  "Page: " . preg_replace('/[?#].*$/', '', $url),
+  $utm ? "Source: " . implode(' / ', array_filter([$utm['utm_source'] ?? '', $utm['utm_medium'] ?? '', $utm['utm_campaign'] ?? ''])) : null,
   "IP: $ip",
 ])));
 
