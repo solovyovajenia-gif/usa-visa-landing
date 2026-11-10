@@ -151,71 +151,182 @@ function kommo_residence_enum(array $k, string $residence): ?array {
   return null;
 }
 
-$kommo_ok = null; $kommo_note = ''; $kommo_lead_id = null; $kommo_err = '';
+/** Поиск существующего контакта по телефону. Возвращает [contact_id, lead_id] или [null, null]. */
+function kommo_find_by_phone(array $k, string $phone): array {
+  $digits = preg_replace('/\D/', '', $phone);
+  if (strlen($digits) < 8) return [null, null];
+  [$code, $data] = kommo_call($k, 'GET', 'contacts?' . http_build_query(['query' => $digits, 'limit' => 5, 'with' => 'leads']));
+  if ($code !== 200 || empty($data['_embedded']['contacts'])) return [null, null];
+  foreach ($data['_embedded']['contacts'] as $c) {
+    foreach ($c['custom_fields_values'] ?? [] as $cf) {
+      if (($cf['field_code'] ?? '') !== 'PHONE') continue;
+      foreach ($cf['values'] ?? [] as $v) {
+        if (preg_replace('/\D/', '', (string)($v['value'] ?? '')) === $digits) {
+          $lead_id = $c['_embedded']['leads'][0]['id'] ?? null;
+          return [(int)$c['id'], $lead_id ? (int)$lead_id : null];
+        }
+      }
+    }
+  }
+  return [null, null];
+}
+
+/** Кэш воронок: имя → [pipeline_id, statuses: name→id, closed: [won_id, lost_id]] */
+function kommo_pipelines(array $k): array {
+  $cache = __DIR__ . '/.kommo_pipelines.json';
+  if (file_exists($cache) && time() - filemtime($cache) < 86400) { $c = json_decode((string)file_get_contents($cache), true); if (!empty($c)) return $c; }
+  [$code, $data] = kommo_call($k, 'GET', 'leads/pipelines?limit=50');
+  if ($code !== 200) return [];
+  $result = [];
+  foreach ($data['_embedded']['pipelines'] ?? [] as $p) {
+    $entry = ['id' => (int)$p['id'], 'statuses' => [], 'won' => 142, 'lost' => 143];
+    foreach ($p['_embedded']['statuses'] ?? [] as $s) {
+      $sname = mb_strtolower(trim($s['name']));
+      $entry['statuses'][$sname] = (int)$s['id'];
+    }
+    $result[mb_strtolower(trim($p['name']))] = $entry;
+  }
+  @file_put_contents($cache, json_encode($result));
+  return $result;
+}
+
+/** ID типа задачи по имени (Follow up, Call и т.д.). Кэш на сутки. */
+function kommo_task_type_id(array $k, string $name): int {
+  $cache = __DIR__ . '/.kommo_task_types.json';
+  if (file_exists($cache) && time() - filemtime($cache) < 86400) { $c = json_decode((string)file_get_contents($cache), true); if (!empty($c)) { $key = mb_strtolower($name); foreach ($c as $n => $id) if (mb_strtolower($n) === $key) return (int)$id; } }
+  [$code, $data] = kommo_call($k, 'GET', 'tasks/types');
+  if ($code !== 200) return 2;
+  $types = [];
+  foreach ($data['_embedded']['task_types'] ?? [] as $t) $types[trim($t['name'])] = (int)$t['id'];
+  @file_put_contents($cache, json_encode($types));
+  $key = mb_strtolower($name);
+  foreach ($types as $n => $id) if (mb_strtolower($n) === $key) return $id;
+  return 2;
+}
+
+$kommo_ok = null; $kommo_note = ''; $kommo_lead_id = null; $kommo_err = ''; $kommo_dedup = false;
 if ($KOMMO && !empty($KOMMO['token']) && !empty($KOMMO['subdomain'])) {
   $res = ($residence !== '') ? kommo_residence_enum($KOMMO, $residence) : null;
   if ($residence !== '' && !$res) $kommo_note = 'residence field not found';
 
-  $lead = [ 'name' => "$service — $name" ];
-  // поле сделки «Source» → «USA website» (иначе автоматизация Kommo ставит «Agent»)
-  $srcField = (int)($KOMMO['source_field_id'] ?? 432700); $srcEnum = (int)($KOMMO['source_enum_id'] ?? 454630);
-  $lf = [];
-  if ($srcField && $srcEnum) $lf[] = [ 'field_id' => $srcField, 'values' => [['enum_id' => $srcEnum]] ];
-  // UTM → поля сделки (tracking data), чтобы работала аналитика/атрибуция
-  $UTM_FIELDS = ['utm_source'=>325784,'utm_medium'=>325780,'utm_campaign'=>325782,'utm_term'=>325786,'utm_content'=>325778];
-  foreach ($UTM_FIELDS as $k => $fid) if (!empty($utm[$k])) $lf[] = [ 'field_id' => $fid, 'values' => [['value' => $utm[$k]]] ];
-  if ($lf) $lead['custom_fields_values'] = $lf;
-  if (!empty($KOMMO['tags'])) $lead['_embedded'] = ['tags' => array_map(fn($t) => ['name' => $t], $KOMMO['tags'])];
-
   $form_name = $f('form') ?: 'usatravel.ae — Case Assessment';
-  // «Неразобранное» (Incoming leads): сделка без ответственного, менеджер принимает её сам
-  $payload = [[
-    'source_uid'  => kommo_site_source_uid($KOMMO),
-    'source_name' => $KOMMO['source_display_name'] ?? 'USA website',
-    'pipeline_id' => (int)($KOMMO['pipeline_id'] ?? 0) ?: null,
-    'created_at'  => time(),
-    'metadata' => [
-      'form_id'      => 'usatravel_ae',
-      'form_name'    => $form_name,
-      'form_page'    => $url ?: 'https://usatravel.ae/',
-      'ip'           => $ip ?: '0.0.0.0',
-      'form_sent_at' => time(),
-      'referer'      => $url ?: 'https://usatravel.ae/',
-    ],
-    '_embedded' => [
-      'leads'    => [$lead],
-      'contacts' => [[
-        'name' => $name,
-        'custom_fields_values' => array_values(array_filter([
-          [ 'field_code' => 'PHONE', 'values' => [['value' => $phone, 'enum_code' => 'WORK']] ],
-          $altEmail !== '' ? [ 'field_code' => 'EMAIL', 'values' => [['value' => $altEmail, 'enum_code' => 'WORK']] ] : null,
-          $altTg !== '' ? [ 'field_id' => (int)($KOMMO['tg_field_id'] ?? 538334), 'values' => [['value' => $altTg]] ] : null,
-          $res ? [ 'field_id' => $res['field_id'], 'values' => [ isset($res['enum_id']) ? ['enum_id' => $res['enum_id']] : ['value' => $res['value']] ] ] : null,
-        ])),
-      ]],
-    ],
-  ]];
-  $payload[0] = array_filter($payload[0], fn($v) => $v !== null);
 
-  [$code, $data, $raw] = kommo_call($KOMMO, 'POST', 'leads/unsorted/forms', $payload);
-  // если Kommo отклонил кастомное поле (например, его удалили) — повторяем без него; страна и так есть в примечании
-  if ($code === 400 && strpos($raw, 'custom_fields_values') !== false) {
-    $payload[0]['_embedded']['contacts'][0]['custom_fields_values'] = [[ 'field_code' => 'PHONE', 'values' => [['value' => $phone, 'enum_code' => 'WORK']] ]];
-    unset($payload[0]['_embedded']['leads'][0]['custom_fields_values']);
-    @file_put_contents(__DIR__ . '/leads.log', "KOMMO retry without custom fields (400): " . substr($raw, 0, 200) . "\n", FILE_APPEND | LOCK_EX);
-    [$code, $data, $raw] = kommo_call($KOMMO, 'POST', 'leads/unsorted/forms', $payload);
+  // --- Дедупликация: ищем контакт по телефону ---
+  [$dup_contact_id, $dup_lead_id] = kommo_find_by_phone($KOMMO, $phone);
+
+  // Определяем действие по статусу существующей сделки в воронке Sales
+  $dedup_action = 'new'; // по умолчанию — новая сделка
+  $dup_responsible = null;
+  if ($dup_lead_id) {
+    [$lcode, $ldata] = kommo_call($KOMMO, 'GET', "leads/$dup_lead_id");
+    if ($lcode === 200 && $ldata) {
+      $dup_pipeline_id = (int)($ldata['pipeline_id'] ?? 0);
+      $dup_status_id   = (int)($ldata['status_id'] ?? 0);
+      $dup_responsible = (int)($ldata['responsible_user_id'] ?? 0) ?: null;
+      $pipes = kommo_pipelines($KOMMO);
+      // ищем воронку Sales
+      $sales = $pipes['sales'] ?? null;
+      if ($sales && $dup_pipeline_id === $sales['id']) {
+        if ($dup_status_id === $sales['won'] || $dup_status_id === $sales['lost']) {
+          $dedup_action = 'new'; // Won/Lost → новая сделка
+        } elseif (
+          (isset($sales['statuses']['responsible assigned']) && $dup_status_id === $sales['statuses']['responsible assigned'])
+          || (isset($sales['statuses']['incoming leads']) && $dup_status_id === $sales['statuses']['incoming leads'])
+        ) {
+          $dedup_action = 'note_only'; // Responsible assign / Incoming leads → только примечание
+        } else {
+          $dedup_action = 'note_task'; // остальные статусы → примечание + задача
+        }
+      } else {
+        // сделка не в Sales — примечание + задача (безопасный вариант)
+        $dedup_action = 'note_task';
+      }
+    }
   }
-  $kommo_ok = ($code >= 200 && $code < 300);
-  $kommo_err = $kommo_ok ? '' : "HTTP $code: " . substr(preg_replace('/\s+/', ' ', strip_tags((string)$raw)), 0, 160);
-  if ($kommo_ok) {
-    $lead_id = $data['_embedded']['unsorted'][0]['_embedded']['leads'][0]['id'] ?? null;
-    $kommo_lead_id = $lead_id;
-    if ($lead_id) kommo_call($KOMMO, 'POST', "leads/$lead_id/notes", [[ 'note_type' => 'common', 'params' => ['text' => $note] ]]);
-  } else {
-    @file_put_contents(__DIR__ . '/leads.log', "KOMMO ERROR $code: " . substr($raw, 0, 300) . "\n", FILE_APPEND | LOCK_EX);
-    if (!$isRetry) { // в очередь на один повтор через 10 минут (retry.php)
-      $q = $_POST; unset($q['website'], $q['_retry'], $q['_retry_key']);
-      @file_put_contents(__DIR__ . '/pending.jsonl', json_encode(['ts' => time(), 'post' => $q], JSON_UNESCAPED_UNICODE) . "\n", FILE_APPEND | LOCK_EX);
+
+  if ($dedup_action === 'note_only' || $dedup_action === 'note_task') {
+    $kommo_dedup = true;
+    $dedup_note = "⚡ Повторная заявка с сайта\n\n" . $note;
+    [$ncode] = kommo_call($KOMMO, 'POST', "leads/$dup_lead_id/notes", [[ 'note_type' => 'common', 'params' => ['text' => $dedup_note] ]]);
+    $kommo_ok = ($ncode >= 200 && $ncode < 300);
+    $kommo_lead_id = $dup_lead_id;
+
+    $task_ok = null;
+    if ($dedup_action === 'note_task') {
+      $follow_up_type = kommo_task_type_id($KOMMO, 'Follow up');
+      $task_payload = [
+        'text'            => "Повторная заявка с сайта usatravel.ae — проверить лид и перезвонить клиенту по необходимости $name (#$dup_lead_id)",
+        'complete_till'   => time() + 3600,
+        'entity_id'       => $dup_lead_id,
+        'entity_type'     => 'leads',
+        'task_type_id'    => $follow_up_type,
+      ];
+      if ($dup_responsible) $task_payload['responsible_user_id'] = $dup_responsible;
+      [$tcode] = kommo_call($KOMMO, 'POST', 'tasks', [$task_payload]);
+      $task_ok = ($tcode >= 200 && $tcode < 300);
+    }
+
+    $kommo_note = 'duplicate — note' . ($kommo_ok ? ' ✓' : ' ✗')
+      . ($task_ok !== null ? ', task' . ($task_ok ? ' ✓' : ' ✗') : ', no task (Responsible assign)');
+    if (!$kommo_ok) $kommo_err = "dedup note HTTP $ncode";
+  } elseif ($dedup_action === 'new') {
+    // Новый контакт — создаём сделку как обычно
+    $lead = [ 'name' => "$service — $name" ];
+    $srcField = (int)($KOMMO['source_field_id'] ?? 432700); $srcEnum = (int)($KOMMO['source_enum_id'] ?? 454630);
+    $lf = [];
+    if ($srcField && $srcEnum) $lf[] = [ 'field_id' => $srcField, 'values' => [['enum_id' => $srcEnum]] ];
+    $UTM_FIELDS = ['utm_source'=>325784,'utm_medium'=>325780,'utm_campaign'=>325782,'utm_term'=>325786,'utm_content'=>325778];
+    foreach ($UTM_FIELDS as $k => $fid) if (!empty($utm[$k])) $lf[] = [ 'field_id' => $fid, 'values' => [['value' => $utm[$k]]] ];
+    if ($lf) $lead['custom_fields_values'] = $lf;
+    if (!empty($KOMMO['tags'])) $lead['_embedded'] = ['tags' => array_map(fn($t) => ['name' => $t], $KOMMO['tags'])];
+
+    $payload = [[
+      'source_uid'  => kommo_site_source_uid($KOMMO),
+      'source_name' => $KOMMO['source_display_name'] ?? 'USA website',
+      'pipeline_id' => (int)($KOMMO['pipeline_id'] ?? 0) ?: null,
+      'created_at'  => time(),
+      'metadata' => [
+        'form_id'      => 'usatravel_ae',
+        'form_name'    => $form_name,
+        'form_page'    => $url ?: 'https://usatravel.ae/',
+        'ip'           => $ip ?: '0.0.0.0',
+        'form_sent_at' => time(),
+        'referer'      => $url ?: 'https://usatravel.ae/',
+      ],
+      '_embedded' => [
+        'leads'    => [$lead],
+        'contacts' => [[
+          'name' => $name,
+          'custom_fields_values' => array_values(array_filter([
+            [ 'field_code' => 'PHONE', 'values' => [['value' => $phone, 'enum_code' => 'WORK']] ],
+            $altEmail !== '' ? [ 'field_code' => 'EMAIL', 'values' => [['value' => $altEmail, 'enum_code' => 'WORK']] ] : null,
+            $altTg !== '' ? [ 'field_id' => (int)($KOMMO['tg_field_id'] ?? 538334), 'values' => [['value' => $altTg]] ] : null,
+            $res ? [ 'field_id' => $res['field_id'], 'values' => [ isset($res['enum_id']) ? ['enum_id' => $res['enum_id']] : ['value' => $res['value']] ] ] : null,
+          ])),
+        ]],
+      ],
+    ]];
+    $payload[0] = array_filter($payload[0], fn($v) => $v !== null);
+
+    [$code, $data, $raw] = kommo_call($KOMMO, 'POST', 'leads/unsorted/forms', $payload);
+    if ($code === 400 && strpos($raw, 'custom_fields_values') !== false) {
+      $payload[0]['_embedded']['contacts'][0]['custom_fields_values'] = [[ 'field_code' => 'PHONE', 'values' => [['value' => $phone, 'enum_code' => 'WORK']] ]];
+      unset($payload[0]['_embedded']['leads'][0]['custom_fields_values']);
+      @file_put_contents(__DIR__ . '/leads.log', "KOMMO retry without custom fields (400): " . substr($raw, 0, 200) . "\n", FILE_APPEND | LOCK_EX);
+      [$code, $data, $raw] = kommo_call($KOMMO, 'POST', 'leads/unsorted/forms', $payload);
+    }
+    $kommo_ok = ($code >= 200 && $code < 300);
+    $kommo_err = $kommo_ok ? '' : "HTTP $code: " . substr(preg_replace('/\s+/', ' ', strip_tags((string)$raw)), 0, 160);
+    if ($kommo_ok) {
+      $lead_id = $data['_embedded']['unsorted'][0]['_embedded']['leads'][0]['id'] ?? null;
+      $kommo_lead_id = $lead_id;
+      if ($lead_id) kommo_call($KOMMO, 'POST', "leads/$lead_id/notes", [[ 'note_type' => 'common', 'params' => ['text' => $note] ]]);
+    } else {
+      @file_put_contents(__DIR__ . '/leads.log', "KOMMO ERROR $code: " . substr($raw, 0, 300) . "\n", FILE_APPEND | LOCK_EX);
+      if (!$isRetry) {
+        $q = $_POST; unset($q['website'], $q['_retry'], $q['_retry_key']);
+        @file_put_contents(__DIR__ . '/pending.jsonl', json_encode(['ts' => time(), 'post' => $q], JSON_UNESCAPED_UNICODE) . "\n", FILE_APPEND | LOCK_EX);
+      }
     }
   }
 }
@@ -223,8 +334,11 @@ if ($KOMMO && !empty($KOMMO['token']) && !empty($KOMMO['subdomain'])) {
 // ---------- Telegram: копия заявки ----------
 $h = fn($v) => htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8');
 $kline = $kommo_ok === null ? '⚪️ Kommo: не настроен'
-       : ($kommo_ok ? '✅ Kommo: сделка #' . ($kommo_lead_id ?? '?') . ' создана' . ($isRetry ? ' (повтор)' : '')
-                    : '❌ Kommo: НЕ создана — ' . $h($kommo_err ?? '') . ($isRetry ? "\n⚠️ Повтор не удался — завести вручную" : "\n🔁 Повтор через 10 минут"));
+       : ($kommo_ok
+           ? ($kommo_dedup
+               ? '🔄 Kommo: повторная заявка → сделка #' . ($kommo_lead_id ?? '?') . ($kommo_note ? " ($kommo_note)" : '')
+               : '✅ Kommo: сделка #' . ($kommo_lead_id ?? '?') . ' создана' . ($isRetry ? ' (повтор)' : ''))
+           : '❌ Kommo: НЕ создана — ' . $h($kommo_err ?? '') . ($isRetry ? "\n⚠️ Повтор не удался — завести вручную" : "\n🔁 Повтор через 10 минут"));
 $utmline = $utm ? ($h($utm['utm_source'] ?? '—') . ' / ' . $h($utm['utm_campaign'] ?? '—')) : 'прямой заход';
 tg_send($TG,
   ($isRetry ? "♻️ <b>usatravel.ae — повтор заявки</b>\n" : "🇺🇸 <b>usatravel.ae — новая заявка</b>\n") .
@@ -237,4 +351,4 @@ tg_send($TG,
   ($mailed === null ? '' : ($mailed ? "📧 Письмо отправлено\n" : "⚠️ Письмо НЕ отправлено\n")) .
   $kline);
 
-echo json_encode(['ok' => true, 'mail' => (bool)$mailed, 'kommo' => $kommo_ok, 'note' => $kommo_note]);
+echo json_encode(['ok' => true, 'mail' => (bool)$mailed, 'kommo' => $kommo_ok, 'note' => $kommo_note, 'dedup' => $kommo_dedup]);
