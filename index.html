@@ -1510,10 +1510,9 @@ function setLang(lang){
     });
   }
 
-  /* ---- CRM: та же интеграция, что на worldpass.ae (Kommo через PinscherCRM) ---- */
+  /* ---- CRM: серверная отправка через send.php (Kommo API напрямую) ---- */
   const CRM = (() => {
-    const HANDLER_URL = 'https://demo2.pinschertest.ru/manager-integration/2026/kommo/infoworldpassae/modules/worldpass.ae/';
-    const SECRET_KEY = 'lEXK1tzckCFSLyuGumsboYfQnpTiswmi';
+    const HANDLER_URL = 'send.php';
     const UTM = ['utm_source','utm_campaign','utm_medium','utm_term','utm_content'];
     const q = n => new URLSearchParams(location.search).get(n) || '';
     const setC = (n, v) => { if (v) document.cookie = `${n}=${encodeURIComponent(v)}; expires=${new Date(Date.now()+3600e3).toUTCString()}; path=/`; };
@@ -1521,8 +1520,8 @@ function setLang(lang){
     UTM.forEach(t => setC(t, q(t)));
     return { send(fd) {
       UTM.forEach(t => fd.append(t, getC(t) || ''));
-      fd.append('secret_key', SECRET_KEY);
       fd.append('url', location.href);
+      fd.append('lang', document.documentElement.lang || 'EN');
       return fetch(HANDLER_URL, { method: 'POST', body: fd, keepalive: true }).catch(err => console.error('CRM send error:', err));
     } };
   })();
