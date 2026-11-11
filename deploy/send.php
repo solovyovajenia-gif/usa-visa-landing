@@ -35,6 +35,15 @@ $url       = $f('url');
 $utm       = [];
 foreach (['utm_source','utm_campaign','utm_medium','utm_term','utm_content'] as $u) if ($f($u) !== '') $utm[$u] = $f($u);
 
+// GA4 Client ID: из POST или запас — cookie _ga (GA1.1.<id1>.<id2> → <id1>.<id2>)
+$gcid = trim((string)($_POST['gclientid'] ?? ''));
+if ($gcid === '' && preg_match('/^GA\d\.\d\.(\d+\.\d+)$/', (string)($_COOKIE['_ga'] ?? ''), $m)) $gcid = $m[1];
+
+// gclid: из POST, cookie gclid, или cookie _gcl_aw (GCL.<ts>.<gclid>)
+$gcl = trim((string)($_POST['gclid'] ?? ''));
+if ($gcl === '' && !empty($_COOKIE['gclid']))   $gcl = trim((string)$_COOKIE['gclid']);
+if ($gcl === '' && !empty($_COOKIE['_gcl_aw']) && preg_match('/GCL\.\d+\.(.+)$/', (string)$_COOKIE['_gcl_aw'], $am)) $gcl = $am[1];
+
 // защита от ботов: пустое имя/телефон или honeypot
 $digits = preg_replace('/\D/', '', $phone);
 if ($name === '' || strpos(ltrim($f('phone')), '+') !== 0 || strlen($digits) < 8 || strlen($digits) > 15 || $digits[0] === '0' || !empty($_POST['website'])) {
@@ -277,6 +286,8 @@ if ($KOMMO && !empty($KOMMO['token']) && !empty($KOMMO['subdomain'])) {
     if ($srcField && $srcEnum) $lf[] = [ 'field_id' => $srcField, 'values' => [['enum_id' => $srcEnum]] ];
     $UTM_FIELDS = ['utm_source'=>325784,'utm_medium'=>325780,'utm_campaign'=>325782,'utm_term'=>325786,'utm_content'=>325778];
     foreach ($UTM_FIELDS as $k => $fid) if (!empty($utm[$k])) $lf[] = [ 'field_id' => $fid, 'values' => [['value' => $utm[$k]]] ];
+    if ($gcid !== '') $lf[] = ['field_id' => 325792, 'values' => [['value' => $gcid]]];  // GA4 Client ID
+    if ($gcl  !== '') $lf[] = ['field_id' => 325794, 'values' => [['value' => $gcl ]]];  // gclid
     if ($lf) $lead['custom_fields_values'] = $lf;
     if (!empty($KOMMO['tags'])) $lead['_embedded'] = ['tags' => array_map(fn($t) => ['name' => $t], $KOMMO['tags'])];
 
