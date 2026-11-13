@@ -1510,8 +1510,9 @@ function setLang(lang){
     });
   }
 
-  /* ---- Отправка заявок: свой обработчик на хостинге (send.php) ---- */
+  /* ---- CRM: серверная отправка через send.php (Kommo API напрямую) ---- */
   const CRM = (() => {
+    const HANDLER_URL = 'send.php';
     const UTM = ['utm_source','utm_campaign','utm_medium','utm_term','utm_content'];
     const q = n => new URLSearchParams(location.search).get(n) || '';
     const setC = (n, v) => { if (v) document.cookie = `${n}=${encodeURIComponent(v)}; expires=${new Date(Date.now()+3600e3).toUTCString()}; path=/`; };
@@ -1520,7 +1521,8 @@ function setLang(lang){
     return { send(fd) {
       UTM.forEach(t => fd.append(t, getC(t) || ''));
       fd.append('url', location.href);
-      return fetch('send.php', { method: 'POST', body: fd, keepalive: true }).catch(err => console.error('Lead send error:', err));
+      fd.append('lang', document.documentElement.lang || 'EN');
+      return fetch(HANDLER_URL, { method: 'POST', body: fd, keepalive: true }).catch(err => console.error('CRM send error:', err));
     } };
   })();
 
