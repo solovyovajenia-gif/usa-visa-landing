@@ -117,13 +117,14 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   ]
 }
 </script>
-<link rel="preload" as="image" href="hero.webp">
+<link rel="preload" as="image" href="hero.webp" imagesrcset="hero-mobile.webp 640w, hero.webp 1000w" imagesizes="(max-width:1023px) 100vw, 50vw">
 <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="favicon-192.png">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&family=Playfair+Display:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&family=Playfair+Display:ital,wght@0,400;1,400&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&family=Playfair+Display:ital,wght@0,400;1,400&display=swap"></noscript>
 <style>
 /* ============ TOKENS (как на worldpass.ae) ============ */
 :root{
@@ -1034,7 +1035,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
     <div class="visual enter h-visual" style="animation-delay:.3s" id="visual">
       <div class="layer sky" data-depth="10">
-        <img class="photo-bg" src="hero.webp" fetchpriority="high" decoding="async" alt="Manhattan skyline at sunset, Empire State Building">
+        <img class="photo-bg" src="hero.webp" srcset="hero-mobile.webp 640w, hero.webp 1000w" sizes="(max-width:1023px) 100vw, 50vw" fetchpriority="high" decoding="async" alt="Manhattan skyline at sunset, Empire State Building">
         <svg class="flight" viewBox="0 0 600 500" preserveAspectRatio="xMidYMid slice" fill="none">
           <path id="flightPath" d="M 40 300 C 160 150, 330 90, 570 70" stroke="rgba(255,255,255,.7)" stroke-width="1.5" stroke-dasharray="4 8"/>
           <g class="plane-g"><path transform="rotate(90) translate(-12,-12)" fill="#fff" d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/><animateMotion dur="9s" repeatCount="indefinite" rotate="auto" keyPoints="0;1" keyTimes="0;1" calcMode="linear"><mpath href="#flightPath"/></animateMotion></g>
